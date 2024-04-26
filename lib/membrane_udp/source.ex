@@ -27,6 +27,13 @@ defmodule Membrane.UDP.Source do
                 Size of the receive buffer. Packages of size greater than this buffer will be truncated
                 """
               ],
+              sock_opts: [
+                spec: [:gen_udp.option()],
+                default: [],
+                description: """
+                Allows passing through options to :gen_udp.open/2
+                """
+              ],
               pierce_nat_ctx: [
                 spec:
                   %{
@@ -57,7 +64,7 @@ defmodule Membrane.UDP.Source do
     socket = %Socket{
       ip_address: opts.local_address,
       port_no: opts.local_port_no,
-      sock_opts: [recbuf: opts.recv_buffer_size]
+      sock_opts: opts.sock_opts ++ [recbuf: opts.recv_buffer_size]
     }
 
     {[], %{local_socket: socket, pierce_nat_ctx: opts.pierce_nat_ctx}}
