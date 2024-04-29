@@ -18,6 +18,7 @@ defmodule Membrane.UDP.Socket do
     with {:ok, socket_handle} <- open_result,
          # Port may change if 0 is used, ip - when either `:any` or `:loopback` is passed
          {:ok, {real_ip_addr, real_port_no}} <- :inet.sockname(socket_handle) do
+        :ok = :inet.setopts(socket_handle, [delay_send: true, sndbuf: 640_000])
       updated_socket = %__MODULE__{
         socket
         | socket_handle: socket_handle,
@@ -38,11 +39,18 @@ defmodule Membrane.UDP.Socket do
   @spec send(target :: t(), source :: t(), payload :: Membrane.Payload.t()) ::
           :ok | {:error, :not_owner | :inet.posix()}
   def send(
-        %__MODULE__{port_no: target_port_no, ip_address: target_ip},
-        %__MODULE__{socket_handle: socket_handle},
+        %__MODULE__{port_no: target_port_no, ip_address: target_ip} = target_sock,
+        %__MODULE__{socket_handle: socket_handle} = local_sock,
         payload
       )
       when is_port(socket_handle) do
     :gen_udp.send(socket_handle, target_ip, target_port_no, payload)
+    |> case do
+      {:error, :eagain} ->
+        Process.sleep(50)
+        send(target_sock, local_sock, payload)
+
+      resp -> resp
+    end
   end
 end
